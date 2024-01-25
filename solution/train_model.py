@@ -1,11 +1,11 @@
-from __future__ import print_function
-import argparse
+from torch.optim.lr_scheduler import StepLR
+from torchvision import datasets, transforms
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torchvision import datasets, transforms
-from torch.optim.lr_scheduler import StepLR
+import typer
 
 
 class Net(nn.Module):
@@ -34,7 +34,7 @@ class Net(nn.Module):
         return output
 
 
-def train(args, model, device, train_loader, optimizer, epoch):
+def train(model, device, train_loader, optimizer, epoch, log_interval, dry_run):
     model.train()
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
@@ -43,11 +43,11 @@ def train(args, model, device, train_loader, optimizer, epoch):
         loss = F.nll_loss(output, target)
         loss.backward()
         optimizer.step()
-        if batch_idx % args.log_interval == 0:
+        if batch_idx % log_interval == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader), loss.item()))
-            if args.dry_run:
+            if dry_run:
                 break
 
 
@@ -70,36 +70,39 @@ def test(model, device, test_loader):
         100. * correct / len(test_loader.dataset)))
 
 
-def main():
-    # Training settings
-    parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
-    parser.add_argument('--batch-size', type=int, default=64, metavar='N',
-                        help='input batch size for training (default: 64)')
-    parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
-                        help='input batch size for testing (default: 1000)')
-    parser.add_argument('--epochs', type=int, default=14, metavar='N',
-                        help='number of epochs to train (default: 14)')
-    parser.add_argument('--lr', type=float, default=1.0, metavar='LR',
-                        help='learning rate (default: 1.0)')
-    parser.add_argument('--gamma', type=float, default=0.7, metavar='M',
-                        help='Learning rate step gamma (default: 0.7)')
-    parser.add_argument('--no-cuda', action='store_true', default=False,
-                        help='disables CUDA training')
-    parser.add_argument('--no-mps', action='store_true', default=False,
-                        help='disables macOS GPU training')
-    parser.add_argument('--dry-run', action='store_true', default=False,
-                        help='quickly check a single pass')
-    parser.add_argument('--seed', type=int, default=1, metavar='S',
-                        help='random seed (default: 1)')
-    parser.add_argument('--log-interval', type=int, default=10, metavar='N',
-                        help='how many batches to wait before logging training status')
-    parser.add_argument('--save-model', action='store_true', default=False,
-                        help='For Saving the current Model')
-    args = parser.parse_args()
-    use_cuda = not args.no_cuda and torch.cuda.is_available()
-    use_mps = not args.no_mps and torch.backends.mps.is_available()
+def main(
+    batch_size: int = 64,
+    test_batch_size: int = 1000,
+    epochs: int = 14,
+    lr: float = 1.0,
+    gamma: float = 0.7,
+    no_cuda: bool = False,
+    no_mps: bool = False,
+    dry_run: bool = False,
+    seed: int = 1,
+    log_interval: int = 10,
+    save_model: bool = False,
+):
+    """
+    Train a CNN on the MNIST dataset.
 
-    torch.manual_seed(args.seed)
+    Args:
+        batch_size: input batch size for training
+        test_batch_size: input batch size for testing
+        epochs: number of epochs to train
+        lr: learning rate
+        gamma: learning rate step gamma
+        no_cuda: disables CUDA training
+        no_mps: disables macOS GPU training
+        dry_run: quickly check a single pass
+        seed: random seed
+        log_interval: how many batches to wait before logging training status
+        save_model: whether to save the trained model
+    """
+    use_cuda = not no_cuda and torch.cuda.is_available()
+    use_mps = not no_mps and torch.backends.mps.is_available()
+
+    torch.manual_seed(seed)
 
     if use_cuda:
         device = torch.device("cuda")
@@ -108,8 +111,8 @@ def main():
     else:
         device = torch.device("cpu")
 
-    train_kwargs = {'batch_size': args.batch_size}
-    test_kwargs = {'batch_size': args.test_batch_size}
+    train_kwargs = {'batch_size': batch_size}
+    test_kwargs = {'batch_size': test_batch_size}
     if use_cuda:
         cuda_kwargs = {'num_workers': 1,
                        'pin_memory': True,
@@ -129,17 +132,17 @@ def main():
     test_loader = torch.utils.data.DataLoader(dataset2, **test_kwargs)
 
     model = Net().to(device)
-    optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
+    optimizer = optim.Adadelta(model.parameters(), lr=lr)
 
-    scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
-    for epoch in range(1, args.epochs + 1):
-        train(args, model, device, train_loader, optimizer, epoch)
+    scheduler = StepLR(optimizer, step_size=1, gamma=gamma)
+    for epoch in range(1, epochs + 1):
+        train(model, device, train_loader, optimizer, epoch, log_interval, dry_run)
         test(model, device, test_loader)
         scheduler.step()
 
-    if args.save_model:
+    if save_model:
         torch.save(model.state_dict(), "mnist_cnn.pt")
 
 
 if __name__ == '__main__':
-    main()
+    typer.run(main)
