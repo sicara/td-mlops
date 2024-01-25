@@ -1,5 +1,11 @@
 # Useful commands
 
+## Run MLFlow Tracking Server
+
+```bash
+mlflow server
+```
+
 ## Run training script
 
 ```bash
