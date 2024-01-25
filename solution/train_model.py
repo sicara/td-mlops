@@ -108,6 +108,21 @@ def main(
         use_cuda = not no_cuda and torch.cuda.is_available()
         use_mps = not no_mps and torch.backends.mps.is_available()
 
+        mlflow.log_params(
+            {
+                "batch_size": batch_size,
+                "test_batch_size": test_batch_size,
+                "epochs": epochs,
+                "lr": lr,
+                "gamma": gamma,
+                "use_cuda": use_cuda,
+                "use_mps": use_mps,
+                "dry_run": dry_run,
+                "seed": seed,
+                "log_interval": log_interval,
+            }
+        )
+
         torch.manual_seed(seed)
 
         if use_cuda:
