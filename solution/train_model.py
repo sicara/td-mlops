@@ -163,6 +163,8 @@ def main(
             test(model, device, test_loader, epoch)
             scheduler.step()
 
+        mlflow.pytorch.log_model(model, "model")
+
         if save_model:
             torch.save(model.state_dict(), "mnist_cnn.pt")
 
