@@ -1,4 +1,7 @@
+fastapi
 mlflow
+python-multipart
 torch
 torchvision
 typer
+uvicorn
