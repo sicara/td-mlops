@@ -72,6 +72,7 @@ def test(model, device, test_loader):
 
 
 def main(
+    run_name: str,
     batch_size: int = 64,
     test_batch_size: int = 1000,
     epochs: int = 14,
@@ -88,6 +89,7 @@ def main(
     Train a CNN on the MNIST dataset.
 
     Args:
+        run_name: name of the MLFlow run
         batch_size: input batch size for training
         test_batch_size: input batch size for testing
         epochs: number of epochs to train
@@ -102,7 +104,7 @@ def main(
     """
     mlflow.set_tracking_uri("http://localhost:5000")
 
-    with mlflow.start_run():
+    with mlflow.start_run(run_name=run_name):
         use_cuda = not no_cuda and torch.cuda.is_available()
         use_mps = not no_mps and torch.backends.mps.is_available()
 

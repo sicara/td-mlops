@@ -9,7 +9,7 @@ mlflow server
 ## Run training script
 
 ```bash
-python train_model.py
+python train_model.py <run_name>
 ```
 
 To see script usage, run:
