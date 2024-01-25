@@ -45,6 +45,7 @@ def train(model, device, train_loader, optimizer, epoch, log_interval, dry_run):
         loss.backward()
         optimizer.step()
         if batch_idx % log_interval == 0:
+            mlflow.log_metric("train_loss", loss.item(), step=(epoch - 1) * len(train_loader) + batch_idx)
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader), loss.item()))
@@ -52,7 +53,7 @@ def train(model, device, train_loader, optimizer, epoch, log_interval, dry_run):
                 break
 
 
-def test(model, device, test_loader):
+def test(model, device, test_loader, epoch):
     model.eval()
     test_loss = 0
     correct = 0
@@ -65,6 +66,7 @@ def test(model, device, test_loader):
             correct += pred.eq(target.view_as(pred)).sum().item()
 
     test_loss /= len(test_loader.dataset)
+    mlflow.log_metric("test_loss", test_loss, step=epoch)
 
     print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
         test_loss, correct, len(test_loader.dataset),
@@ -158,7 +160,7 @@ def main(
         scheduler = StepLR(optimizer, step_size=1, gamma=gamma)
         for epoch in range(1, epochs + 1):
             train(model, device, train_loader, optimizer, epoch, log_interval, dry_run)
-            test(model, device, test_loader)
+            test(model, device, test_loader, epoch)
             scheduler.step()
 
         if save_model:
