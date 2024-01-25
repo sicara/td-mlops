@@ -1,6 +1,7 @@
 from torch.optim.lr_scheduler import StepLR
 from torchvision import datasets, transforms
 
+import mlflow
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -99,49 +100,52 @@ def main(
         log_interval: how many batches to wait before logging training status
         save_model: whether to save the trained model
     """
-    use_cuda = not no_cuda and torch.cuda.is_available()
-    use_mps = not no_mps and torch.backends.mps.is_available()
+    mlflow.set_tracking_uri("http://localhost:5000")
 
-    torch.manual_seed(seed)
+    with mlflow.start_run():
+        use_cuda = not no_cuda and torch.cuda.is_available()
+        use_mps = not no_mps and torch.backends.mps.is_available()
 
-    if use_cuda:
-        device = torch.device("cuda")
-    elif use_mps:
-        device = torch.device("mps")
-    else:
-        device = torch.device("cpu")
+        torch.manual_seed(seed)
 
-    train_kwargs = {'batch_size': batch_size}
-    test_kwargs = {'batch_size': test_batch_size}
-    if use_cuda:
-        cuda_kwargs = {'num_workers': 1,
-                       'pin_memory': True,
-                       'shuffle': True}
-        train_kwargs.update(cuda_kwargs)
-        test_kwargs.update(cuda_kwargs)
+        if use_cuda:
+            device = torch.device("cuda")
+        elif use_mps:
+            device = torch.device("mps")
+        else:
+            device = torch.device("cpu")
 
-    transform=transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.1307,), (0.3081,))
-        ])
-    dataset1 = datasets.MNIST('../data', train=True, download=True,
-                       transform=transform)
-    dataset2 = datasets.MNIST('../data', train=False,
-                       transform=transform)
-    train_loader = torch.utils.data.DataLoader(dataset1,**train_kwargs)
-    test_loader = torch.utils.data.DataLoader(dataset2, **test_kwargs)
+        train_kwargs = {'batch_size': batch_size}
+        test_kwargs = {'batch_size': test_batch_size}
+        if use_cuda:
+            cuda_kwargs = {'num_workers': 1,
+                           'pin_memory': True,
+                           'shuffle': True}
+            train_kwargs.update(cuda_kwargs)
+            test_kwargs.update(cuda_kwargs)
 
-    model = Net().to(device)
-    optimizer = optim.Adadelta(model.parameters(), lr=lr)
+        transform=transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.1307,), (0.3081,))
+            ])
+        dataset1 = datasets.MNIST('../data', train=True, download=True,
+                           transform=transform)
+        dataset2 = datasets.MNIST('../data', train=False,
+                           transform=transform)
+        train_loader = torch.utils.data.DataLoader(dataset1,**train_kwargs)
+        test_loader = torch.utils.data.DataLoader(dataset2, **test_kwargs)
 
-    scheduler = StepLR(optimizer, step_size=1, gamma=gamma)
-    for epoch in range(1, epochs + 1):
-        train(model, device, train_loader, optimizer, epoch, log_interval, dry_run)
-        test(model, device, test_loader)
-        scheduler.step()
+        model = Net().to(device)
+        optimizer = optim.Adadelta(model.parameters(), lr=lr)
 
-    if save_model:
-        torch.save(model.state_dict(), "mnist_cnn.pt")
+        scheduler = StepLR(optimizer, step_size=1, gamma=gamma)
+        for epoch in range(1, epochs + 1):
+            train(model, device, train_loader, optimizer, epoch, log_interval, dry_run)
+            test(model, device, test_loader)
+            scheduler.step()
+
+        if save_model:
+            torch.save(model.state_dict(), "mnist_cnn.pt")
 
 
 if __name__ == '__main__':
